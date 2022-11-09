@@ -1,0 +1,305 @@
+-- Apex Controller --
+
+public class SchemeController {
+    @auraEnabled
+    public static List<Interest_Schemes__c> fetchSchemes(String depoType, Integer fDAmount, Integer tnrMnth, Integer tnrDy, String fdId){
+        List<Interest_Schemes__c> listSchme = new List<Interest_Schemes__c>();
+        system.debug('deposit type::' + depoType);
+        system.debug('fd amount::' + fDAmount);
+        system.debug('tenor in months::' + tnrMnth);
+        system.debug('tenor in days::' + tnrDy);
+        
+        string depTypeValue;
+        if(depoType=='Cumulative'){
+            depTypeValue='C';
+        }else if(depoType=='Non-Cumulative'){
+            depTypeValue='NC';
+        }
+        listSchme=[SELECT Id, Name, Customer_Type__c, Deposit_Type__c, From_Amount__c, To_Amount__c, Tenor_From_Months__c, Tenor_To_Months__c, 
+                   Tenor_From_Days__c, Tenor_To_Days__c, Interest_Rate__c FROM Interest_Schemes__c 
+				   WHERE Customer_Type__c ='I' AND Deposit_Type__c=:depTypeValue AND Tenor_To_Months__c >=:tnrMnth AND Tenor_From_Months__c <=:tnrMnth 
+                   AND Tenor_From_Days__c <=:tnrDy AND Tenor_To_Days__c >=:tnrDy
+				   AND From_Amount__c<=:fDAmount AND To_Amount__c >=:fDAmount];
+        
+        return listSchme;
+        
+    }
+    
+    @auraEnabled
+    public static void saveMethodApex(String depoType, Integer fDAmount, Integer tnrMnth, Integer tnrDy, String fdId, String payFrequency, String schemeID, 
+                                     Decimal intRate){
+        system.debug('deposit type::' + depoType);
+        system.debug('fd amount::' + fDAmount);
+        system.debug('tenor in months::' + tnrMnth);
+        system.debug('tenor in days::' + tnrDy);
+        system.debug('fd record Id::' + fdId);
+        system.debug('payout frequency::' + payFrequency);
+        system.debug('Interest Scheme Look up::' + schemeID);
+        system.debug('Interest Rate::' + intRate);
+        
+        FD_Details__c recFd = new FD_Details__c();
+        recFd.Id= fdId;
+		recFd.Deposit_Type__c= depoType;
+		recFd.Interest_Rate__c= intRate;
+		recFd.Interest_Schemes__c=  schemeID;
+		recFd.Payout_Frequency__c= payFrequency;
+		recFd.Tenor_in_days__c= tnrDy ;
+		recFd.Tenor_in_months__c= tnrMnth ;	
+		recFd.FD_Amount__c= fDAmount;
+		
+		update recFd;                                 
+    }
+}
+
+
+-------------------------------------------------------------------------------------------
+
+--Component-- 
+
+<aura:component implements="flexipage:availableForRecordHome,force:hasRecordId" access="global" controller="SchemeController" >
+    <aura:attribute name="recordId" type="String" />
+    <aura:attribute name="depositTypeOptions" type="String[]" default="['Cumulative','Non-Cumulative']"/>
+    <aura:attribute name="tenorMonthsOptions" type="Integer[]" default="[1,2,3,4,5,6,7,8,9,10,11,12]"/>
+    <aura:attribute name="tenorDaysOptions" type="Integer[]" default="[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]"/>
+    <aura:attribute name="payoutFreqOptions" type="String[]"/>
+    <aura:attribute name="depTypeValue" type="String"/>
+    <aura:attribute name="payFreqValue" type="String"/>
+    <aura:attribute name="tenorMonthValue" type="Integer"/>
+    <aura:attribute name="tenorDayValue" type="Integer"/>
+    <aura:attribute name="fDAmountValue" type="Integer"/>
+    <aura:attribute name="schemeOptions" type="Object[]" default="[]"/>
+    <aura:attribute name="schemeId" type="String"/>
+    <aura:attribute name="interestRateValue" type="String" />
+    
+    <div class="slds-grid slds-wrap">
+        <div class="slds-col slds-size_4-of-12 slds-p-around_x-small">
+                <lightning:select name="depType" label="Deposit Type" required="true" onchange="{!c.populatePayFreq}"
+                                  value="{!v.depTypeValue}" aura:id="inputFetchSch">
+                    <option value="">choose one...</option>
+                    <aura:iteration items="{!v.depositTypeOptions}" var="dep">
+                    <option value="{!dep}">{!dep}</option>
+                    </aura:iteration>
+                </lightning:select>     
+        </div>  
+        <div class="slds-col slds-size_4-of-12 slds-p-around_x-small">
+                <lightning:select name="payType" label="Payout Frequency" required="true" aura:id="inputFetchSch" value="{!v.payFreqValue}">
+                    <option value="">choose one...</option>
+                    <aura:iteration items="{!v.payoutFreqOptions}" var="freq">
+                    <option value="{!freq}">{!freq}</option>
+                    </aura:iteration>
+                </lightning:select>
+        </div>
+        <div class="slds-col slds-size_4-of-12 slds-p-around_x-small">
+            
+                <lightning:select name="tenorInMonths" label="Tenor In Months" required="true" aura:id="inputFetchSch" value="{!v.tenorMonthValue}">
+                    <option value="">choose one...</option>
+                     <aura:iteration items="{!v.tenorMonthsOptions}" var="tenorMonths">
+                    <option value="{!tenorMonths}">{!tenorMonths}</option>
+                    </aura:iteration>
+                </lightning:select>
+        </div>
+        <div class="slds-col slds-size_4-of-12 slds-p-around_x-small">
+            
+                <lightning:select name="tenorInDays" label="Tenor In Days" required="true" aura:id="inputFetchSch" value="{!v.tenorDayValue}">
+                    <option value="">choose one...</option>
+                     <aura:iteration items="{!v.tenorDaysOptions}" var="tenorDays">
+                    <option value="{!tenorDays}">{!tenorDays}</option>
+                    </aura:iteration>
+                </lightning:select>
+        </div>
+        
+        <div class="slds-col slds-size_4-of-12 slds-p-around_x-small">
+        </div>
+        
+        <div class="slds-col slds-size_4-of-12 slds-p-around_x-small">
+            <lightning:input type="number" name="FdAmount" label="FD Amount" required="true" aura:id="inputFetchSch" value="{!v.fDAmountValue}" />
+        </div>
+        
+        <div class="slds-col slds-size_12-of-12 slds-p-around_x-small slds-align_absolute-center">
+            <lightning:button variant="brand" label="Fetch Scheme" title="Fetch Scheme" onclick="{!c.fetchScheme}" ></lightning:button>
+        </div>
+        
+        <div class="slds-col slds-size_4-of-12 slds-p-around_x-small">
+            
+                <lightning:select name="schemes" label="Schemes" required="true" aura:id="inputSaveSch" 
+                                  value="{!v.schemeId}" onchange="{!c.populateInterestRate}">
+                    <option value="">choose one...</option>
+                     <aura:iteration items="{!v.schemeOptions}" var="schemeVar">
+                    <option value="{!schemeVar.recId}">{!schemeVar.name}</option>
+                    </aura:iteration>
+                </lightning:select>
+        </div>
+        
+        <div class="slds-col slds-size_4-of-12 slds-p-around_x-small">
+        </div>
+    	<div class="slds-col slds-size_4-of-12 slds-p-around_x-small">
+            <lightning:input type="number" name="InterestRate" label="Interest Rate" required="true" disabled="true"
+                             aura:id="inputSaveSch" value="{!v.interestRateValue}"/>
+        </div>
+         <div class="slds-col slds-size_12-of-12 slds-p-around_x-small slds-align_absolute-center">
+            <lightning:button variant="brand" label="Save" title="Save" onclick="{!c.Save}" ></lightning:button>
+        </div>
+    </div>
+</aura:component>
+
+
+-------------------------------------------------------------------------------------------
+
+-- Controller --
+
+({
+	populatePayFreq : function(component, event, helper) {
+        console.log('Inside the populatePayFreq::: ');
+        var depType = component.get("v.depTypeValue");
+        console.log('depType::' + depType);
+        var payFreqArray=[];
+        if(depType=='Cumulative'){
+			payFreqArray.push('Single');
+        
+        
+        }else if(depType=='Non-Cumulative'){
+            payFreqArray.push('Monthly');
+            payFreqArray.push('Quarterly');
+            payFreqArray.push('Half Yearly ');
+            payFreqArray.push('Annual');
+        }
+        console.log('payFreq:::' + payFreqArray);
+        component.set("v.payoutFreqOptions",payFreqArray);
+	},
+    
+    fetchScheme: function(component, event, helper) {
+        var allValid = component.find('inputFetchSch').reduce(function (validSoFar, inputCmp) {
+            inputCmp.showHelpMessageIfInvalid();
+            return validSoFar && !inputCmp.get('v.validity').valueMissing;
+        }, true);
+
+        if (allValid) {
+        console.log('Valid');
+        helper.callFetchScheme(component, event, helper);
+        } else {
+         console.log('Invalid');   
+        }
+        
+    },
+    Save: function(component, event, helper) {
+        var fetchElements = component.find('inputFetchSch').reduce(function (validSoFar, inputCmp) {
+            inputCmp.showHelpMessageIfInvalid();
+            return validSoFar && !inputCmp.get('v.validity').valueMissing;
+        }, true);
+        var saveElements = component.find('inputSaveSch').reduce(function (validSoFar, inputCmp) {
+            inputCmp.showHelpMessageIfInvalid();
+            return validSoFar && !inputCmp.get('v.validity').valueMissing;
+        }, true);
+
+        if (fetchElements&&saveElements) {
+        console.log('Valid');
+        helper.saveMethod(component, event);
+        } else {
+         console.log('Invalid');   
+        }
+        
+        
+    },
+    populateInterestRate: function(component, event, helper){
+        console.log("inside the populate interest rate:::");
+        var schemeId = component.get("v.schemeId");
+        var listScheme = component.get("v.schemeOptions");
+        console.log("schemeId:::" + schemeId);
+        
+        
+		for(var cnt=0 ;cnt<listScheme.length; cnt++){
+			if(schemeId == listScheme[cnt].recId){
+				component.set("v.interestRateValue",listScheme[cnt].interestRate);
+			}
+		}
+    }
+})
+
+
+-----------------------------------------------------------------------------------------------
+
+--Helper-- 
+
+({
+	callFetchScheme : function(component, event, helper) {
+        var localDepTypeValue = component.get("v.depTypeValue");
+        var localTenorMonthValue = component.get("v.tenorMonthValue");
+        var localTenorDayValue = component.get("v.tenorDayValue");
+        var localFDAmountValue = component.get("v.fDAmountValue");
+        
+        
+		var action = component.get("c.fetchSchemes");
+        action.setParams({
+            "depoType":localDepTypeValue,
+            "tnrMnth":localTenorMonthValue,
+            "tnrDy":localTenorDayValue,
+            "fDAmount":localFDAmountValue,
+            "fdId":'1'
+            
+        });
+        action.setCallback(this, function(response){
+            var state = response.getState();
+            if(state=="SUCCESS"){   
+                console.log('response from apex::' + JSON.stringify(response.getReturnValue()));
+                var listSchemes = response.getReturnValue();
+                if(listSchemes){
+                   var lstSchm=[];
+                    for(var count=0; count<listSchemes.length;count++ ){
+                        var tempObj={};
+                        tempObj.recId=listSchemes[count].Id;
+                        tempObj.name=listSchemes[count].Name;
+                        tempObj.interestRate=listSchemes[count].Interest_Rate__c;
+                        lstSchm.push(tempObj);
+                    }
+                    component.set("v.schemeOptions",lstSchm);
+                }
+            }else{           
+                console.log(state);
+            }   
+        });
+        $A.enqueueAction(action);
+	},
+    
+    saveMethod: function(component, event, helper){
+        var localDepTypeValue = component.get("v.depTypeValue");
+        var localTenorMonthValue = component.get("v.tenorMonthValue");
+        var localTenorDayValue = component.get("v.tenorDayValue");
+        var localFDAmountValue = component.get("v.fDAmountValue");
+        var localFdId = component.get("v.recordId");
+        var localpayFreq = component.get("v.payFreqValue");
+        var localschemeId = component.get("v.schemeId");
+        var localinterestRate = component.get("v.interestRateValue");
+         console.log('inside the save method');
+        
+        var action = component.get("c.saveMethodApex");
+        action.setParams({
+            "depoType":localDepTypeValue,
+            "tnrMnth":localTenorMonthValue,
+            "tnrDy":localTenorDayValue,
+            "fDAmount":localFDAmountValue,
+            "fdId":localFdId,
+            "payFrequency":localpayFreq,
+            "schemeID":localschemeId,
+            "intRate":localinterestRate
+        });
+        action.setCallback(this, function(response) {
+            var state = response.getState();
+            if (state === 'SUCCESS') {
+                console.log('Response::'+JSON.stringify(response.getReturnValue()));
+                var toastEvent = $A.get("e.force:showToast");
+            toastEvent.setParams({
+            "title":"Success:",
+            "message": "Changes saved!",
+            "duration":5000,
+            "mode": "dismissible",
+                "variant":"Success"
+    });
+    toastEvent.fire();
+            }
+            else {
+                console.log(state);
+            }
+        });
+        $A.enqueueAction(action);
+    },
+})

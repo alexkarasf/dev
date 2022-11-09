@@ -1,0 +1,53 @@
+trigger testFD on FD_Details__c (before insert, after insert) {
+    switch on Trigger.operationType{
+        When BEFORE_INSERT{
+            testFDHandler.populateRelOff(Trigger.new);
+        }
+        when AFTER_INSERT{
+            testFDHandler.shareRelOff(Trigger.new);
+            
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+ public static void shareRelOff(List<FD_Details__c> listNew){
+        List<FD_Details__share> shareList = new List<FD_Details__share>();
+        for(FD_Details__c objFD:listNew){
+            if(String.isNotBlank(objFD.Relationship_Officer__c)){
+                // Create new sharing object for the custom object Job.
+                FD_Details__share fdShare  = new FD_Details__share();
+                
+                // Set the ID of record being shared.
+                fdShare.ParentId = objFD.Id;
+                
+                // Set the ID of user or group being granted access.
+                fdShare.UserOrGroupId = objFD.Relationship_Officer__c;
+                
+                // Set the access level.
+                fdShare.AccessLevel = 'Read';
+                
+                // Set rowCause to 'manual' for manual sharing.
+                // This line can be omitted as 'manual' is the default value for sharing objects.
+                fdShare.RowCause = 'Manual';
+                shareList.add(fdShare);
+            }
+        }
+        
+        // Insert the sharing record and capture the save result. 
+        // The false parameter allows for partial processing if multiple records passed 
+        // into the operation.
+        Database.insert(shareList,false);
+    }
+}

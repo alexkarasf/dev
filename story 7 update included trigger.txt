@@ -1,0 +1,79 @@
+Trigger
+
+
+trigger FDdetailsTrigger on FD_Details__c (before insert, before update) {
+    if(trigger.IsBefore){
+        if(trigger.IsInsert){
+            FDdetailsTriggerHandler.populateRelOff(Trigger.new);
+        }
+        if(trigger.IsUpdate){
+            FDdetailsTriggerHandler.updateRelOff(Trigger.new, Trigger.oldMap);
+        }
+        
+    }
+    
+}
+
+
+---------------------------------------
+
+public class FDdetailsTriggerHandler {
+    	/*
+	Created By		: 	Kenan
+	param1	lstNew	: 	This is Trigger.new collection passed from trigger
+	Description		:	This method gets called in before insert context. It assigns Branch Relationship officer to FD for selected Branch
+		*/
+    public static void populateRelOff(List<FD_Details__c> newRecs){
+        //1.Step: Fetch the branch names of the newly created records (newRecs)
+        Set<String> branchNames = new Set<String>();
+        for(FD_Details__c recFd:newRecs){
+            if(String.isNotBlank(recFd.Branch__c)){
+                branchNames.add(recFd.Branch__c);
+            }
+        }
+        //2.Step: Fetch the record field values from Branch Relationship Officer object filtered by that set.
+        List<Branch_Relationship_Officer__c> listBrRel= new List<Branch_Relationship_Officer__c>();
+        if(branchNames.size()>0){
+            listBrRel=[SELECT Id, Name, Branch_Name__c, Relationship_Officer__c FROM Branch_Relationship_Officer__c WHERE Branch_Name__c=:branchNames];
+        }
+        
+        //3.Step: Create a map collection and put the branch names as keys, rel off as values.
+        Map<String,String> mapVar = new Map<String,String>();
+        for(Branch_Relationship_Officer__c brRec:listBrRel){
+            mapVar.put(brRec.Branch_Name__c, brRec.Relationship_Officer__c);
+        }
+        //4.Step: Populate the map elements to the newly created records.
+        for(FD_Details__c recFd:newRecs){
+            if(String.isNotBlank(recFd.Branch__c) && mapVar.containsKey(recFd.Branch__c)){
+                
+                recFd.Relationship_Officer__c=mapVar.get(recFd.Branch__c);   
+            }     
+        }
+    }  
+    public static void updateRelOff(List<FD_Details__c> newRecs, Map<Id,FD_Details__c> mapFD){
+        //1.Step: Fetch the branch names of the newly created records (newRecs)
+        Set<String> branchNames = new Set<String>();
+        for(FD_Details__c recFd:newRecs){
+            if(String.isNotBlank(recFd.Branch__c)){
+                branchNames.add(recFd.Branch__c);
+            }
+        }
+        //2.Step: Fetch the record field values from Branch Relationship Officer object filtered by that set.
+        List<Branch_Relationship_Officer__c> listBrRel= new List<Branch_Relationship_Officer__c>();
+        if(branchNames.size()>0){
+            listBrRel=[SELECT Id, Name, Branch_Name__c, Relationship_Officer__c FROM Branch_Relationship_Officer__c WHERE Branch_Name__c=:branchNames];
+        }
+        
+        //3.Step: Create a map collection and put the branch names as keys, rel off as values.
+        Map<String,String> mapVar = new Map<String,String>();
+        for(Branch_Relationship_Officer__c brRec:listBrRel){
+            mapVar.put(brRec.Branch_Name__c, brRec.Relationship_Officer__c);
+        }
+        //List<FD_Details__c> fdToBeUpdated = new List<FD_Details__c>();
+        for(FD_Details__c fdRec:newRecs){
+            if(mapFD.get(fdRec.Id).Branch__c !=fdRec.Branch__c){
+                fdRec.Relationship_Officer__c=mapVar.get(fdRec.Branch__c);         
+            }   
+        }
+    }
+}

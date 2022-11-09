@@ -1,0 +1,143 @@
+public class oppTriggerHandler {
+//Params1   updatedOpps  : This is Trigger.new collection passed from trigger
+//Params2 mapOpp  : This is Trigger.oldMap map collection passed from Trigger
+//Description : This method gets called in after update context.
+//It creates a new contrat object record and most field values are mapped from releated opportunity record.
+    public static void createTaskContract(List<Opportunity> listOpps, Map<Id,Opportunity> mapOpp){       
+        List<Task> taskToBeInserted = new List<Task> ();
+         List<Contract> contractsToBeInserted = new List<Contract> ();
+        //String recOpp =[SELECT Id FROM RecordType WHERE DeveloperName='For_Lease' AND sObjectType='Opportunity'].id;  
+        RecordType recOpp =[SELECT Id FROM RecordType WHERE DeveloperName='For_Lease' AND sObjectType='Opportunity'];
+        String recId = recOpp.Id;      
+        for(Opportunity opp:listOpps){
+            if(opp.StageName=='Deal Approved' && opp.StageName != mapOpp.get(opp.Id).StageName && opp.RecordTypeId==recId){     
+                Task taskForAsset=new Task(Subject=opp.Name+'Please work on Docs',Status='Not Started', WhatId=opp.Id, OwnerId=opp.Asset_Manager__c );
+                tasksToBeInsterted.add(taskForAsset);
+                Task taskForAdmin=new Task(Subject=opp.Name+'lease work on Docs',Status='Not Started', WhatId=opp.Id, OwnerId=opp.Leasing_Admin__c );
+                tasksToBeInsterted.add(taskForAdmin);
+                Task taskForAnalyst=new Task(Subject=opp.Name+'lease work on Docs',Status='Not Started', WhatId=opp.Id, OwnerId=opp.Leasing_Analyst__c );
+                tasksToBeInsterted.add(taskForAnalsyt);               
+            }
+             if(opp.StageName=='Closed Won' && opp.StageName != mapOpp.get(opp.Id).StageName && opp.RecordTypeId==recId){
+                Decimal contractTerm=convertTerm(opp.Lease_Term_Type__c, opp.Lease_Term__c);                
+                Contract contract1 = new Contract(AccountId= opp.AccountId, Asset_Manager__c= opp.Asset_Manager__c, Center__c= opp.Center__c, Contact_Name= opp.Contact_Name__c, ContractTerm= Integer.valueOf(contractTerm), Space__c= opp.Space__c, Leasing_Admin__c= opp.Leasing_Admin__c, Leasing_Analyst__c= opp.Leasing_Analyst__c, Status='Draft', Type__c= opp.Type);
+                contractsToBeInsterted.add(contract1);
+                Task taskForAsset=new Task(Subject=opp.Name+'Please work on it',Status='Not Started', WhatId=opp.Id, OwnerId=opp.Asset_Manager__c );
+                tasksToBeInsterted.add(taskForAsset);
+                Task taskForAdmin=new Task(Subject=opp.Name+'Please work on it',Status='Not Started', WhatId=opp.Id, OwnerId=opp.Leasing_Admin__c );
+                tasksToBeInsterted.add(taskForAdmin);
+                Task taskForAnalyst=new Task(Subject=opp.Name+'Please work on it',Status='Not Started', WhatId=opp.Id, OwnerId=opp.Leasing_Analyst__c );
+                tasksToBeInsterted.add(taskForAnalsyt); 
+            }
+        }
+        Database.instert(contractsToBeInsterted);
+        Database.instert(tasksToBeInsterted);  // insert tasksToBeInserted
+    }  
+    public static Decimal convertTerm(String leaseType, Decimal leaseTerm){
+        Decimal convertedTerm;
+        switch on leaseType{
+        when 'Year'{
+            convertedTerm=leaseTerm*12;
+        }
+        when 'Month'{
+            convertedTerm=leaseTerm;
+        }
+        when 'Week'{
+            Decimal tempVar=leaseTerm/4;
+            convertedTerm=tempVar.round(System.RoundingMode.CEILING);
+        }
+    }
+        return convertedTerm;
+    }
+    public static void mapTeamMembers(List<Opportunity> listOpps){
+//Param1 listOpps   : This is Trigger.new collection passed from trigger
+//Description:  This method gets called in before insert context.
+//It is populating the team members filed values from related center object reord.   
+        //Step1 : I should have the ids of centers of the newly created opp records for using them as filters in the SQL.
+        Set<String> idsOpps = new Set<String>();
+        for(Opprtunity opp:listOpps){
+            if(String.isNotBlank(opp.Center__c)){
+                idsOfOpps.add(opp.Center__c);
+            }
+        }       
+        //Step2: We are fetching the related centers of the newly created opps.
+        if(idsOfOpps.size()>0){
+            Map<Id,Center__c> mapVar = new Map<Id,Center__c> ([SELECT Id, Name, Asset_Manager__c, Leasing_Analyst__c, Leasing_Admin__c FROM Center__c WHERE Id IN:idsOfOpps]);
+             
+      //Step3 : we are mapping the opp team members` values with the related center team members` values.
+        for(Opprtunity opp:listOpps){
+            if(String.isNotBlank(opp.Center__c) && mapVar.containsKey(opp.Center__C)){
+                opp.Asset_Manager__c=mapVar.get(opp.Center__c).Asset_Manager__c;
+                opp.Leasing_Admin__c=mapVar.get(opp.Center__c).Leasing_Admin__c;
+                opp.Leasing_Analyst__c=mapVar.get(opp.Center__c).Leasing_Analyst__c;
+            }
+        }
+        
+        }        
+    }
+}
+
+---------------------------------
+
+trigger OpportunityTrigger on Opportunity (before insert, after update) {
+    if(Trigger.isAfter){
+        if(Trigger.isUpdate){
+            oppTriggerHandler.createTaskContractor(Trigger.new, Trigger.oldMap);
+        }
+            if(Trigger.isInsert){
+                
+            }
+        }
+      if(Trigger.isBefore){
+        if(Trigger.isInsert){
+            oppTriggerHandler.mapTeamMembers(Trigger.new);
+        }
+    }
+}
+
+---------------------------------
+
+public class BatchUserDeactivation implements Database.Batchable<sObject>, Database.stateful, Schedulable{
+    List<String> usersDeactivated = new List<String>();
+    Integer amountOfDeactUsers=0;
+    public Database.QueryLocator start(Database.BatchableContext bc){
+        String amountOfDay = System.label.AmountOfDays;
+        Integer noOfDays = Integer.valueOf(amountOfDay);
+        Datetime lstlgnDate = Datetime.now()-noOfDays;
+        
+        return Database.getQueryLocator([SELECT Id, Name, FirstName, LastName, IsActive, LastLoginDate FROM User WHERE IsActive=true AND LastLoginDate<=:lstlgnDate]);
+        
+    }
+    public void execute (Database.BatchableContext bc, List<User> usrList ){
+        if(usrList.size()>0){
+            for(User usr: usrList){
+                usr.isActive=false;
+                String fullName = usr.FirstName + ' ' + usr.LastName;
+                usersDeactivated.add(fullName);
+                amountOfDeactUsers++;
+            }
+            Database.update(usrList, false);
+        }
+    }    
+     public void finish (Database.BatchableContext bc){
+        System.debug('Deactivated users:' + usersDeactivated);
+         System.debug('Amount of the deactivated users:' + amountOfDeactUsers);
+         AsyncApexJob job = [SELECT Id, Status, NumberOfErrors FROM AsyncApexJob WHERE Id=:bc.getJobId()];
+         Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
+         List<String> toEmails = new List<String> {'aoksfdeveloper@gmail.com'};
+            email.setToAddresses(toEmails);
+            email.setSubject('User Deactivation Job') ;
+            email.setPlainTextBody('Hi'+'\n'
+                                   +'The users below are deacivated ' +'\n'
+                                   + usersDeactivated +'\n'
+                                   +'The amount of the Deactivated Users:'+'\n'
+                                   +'Number of Errors' + job.NumberOfErrors + 'FYI' ) ;     
+             List <Messaging.SingleEmailMessage> listMails= new List <Messaging.SingleEmailMessage>();
+               listMails.add(email);
+               messaging.sendEmail(listMails);                                  
+            }
+         public void execute (SchedulableContext sc){
+             BatchUserDeactivation myBatch = new BatchUserDeactivation();
+             Database.executeBatch(myBatch);
+         }
+        }

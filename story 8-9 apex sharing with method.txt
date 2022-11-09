@@ -1,0 +1,80 @@
+public static void shareRelOff(List<FD_Details__c> listNew){
+        List<FD_Details__share> shareList = new List<FD_Details__share>();
+        for(FD_Details__c objFD:listNew){
+            if(String.isNotBlank(objFD.Relationship_Officer__c)){
+                /*
+                // Create new sharing object for the custom object Job.
+                FD_Details__share fdShare  = new FD_Details__share();
+                
+                // Set the ID of record being shared.
+                fdShare.ParentId = objFD.Id;
+                
+                // Set the ID of user or group being granted access.
+                fdShare.UserOrGroupId = objFD.Relationship_Officer__c;
+                
+                // Set the access level.
+                fdShare.AccessLevel = 'Read';
+                
+                // Set rowCause to 'manual' for manual sharing.
+                // This line can be omitted as 'manual' is the default value for sharing objects.
+                fdShare.RowCause = 'Manual';
+                shareList.add(fdShare);
+				
+			*/
+                FD_Details__share fdShare  = new FD_Details__share();
+                fdShare=createShareIns(objFD.Id, objFD.Relationship_Officer__c);
+                shareList.add(fdShare);
+            }
+            
+            if(String.isNotBlank(objFD.Sales_Representative__c)){
+                /*
+                // Create new sharing object for the custom object Job.
+                FD_Details__share fdShare  = new FD_Details__share();
+                
+                // Set the ID of record being shared.
+                fdShare.ParentId = objFD.Id;
+                
+                // Set the ID of user or group being granted access.
+                fdShare.UserOrGroupId = objFD.Sales_Representative__c;
+                
+                // Set the access level.
+                fdShare.AccessLevel = 'Read';
+                
+                // Set rowCause to 'manual' for manual sharing.
+                // This line can be omitted as 'manual' is the default value for sharing objects.
+                fdShare.RowCause = 'Manual';
+               
+				*/
+				FD_Details__share fdShare  = new FD_Details__share();
+                fdShare=createShareIns(objFD.Id, objFD.Sales_Representative__c);
+                 shareList.add(fdShare);
+            }
+			
+        }
+        
+        // Insert the sharing record and capture the save result. 
+        // The false parameter allows for partial processing if multiple records passed 
+        // into the operation.
+        Database.insert(shareList,false);
+    }
+    
+    public static FD_Details__share createShareIns(Id recId, Id userGroupId){
+        // Create new sharing object for the custom object Job.
+                FD_Details__share fdShare  = new FD_Details__share();
+                
+                // Set the ID of record being shared.
+                fdShare.ParentId = recId;
+                
+                // Set the ID of user or group being granted access.
+                fdShare.UserOrGroupId = userGroupId;
+                
+                // Set the access level.
+                fdShare.AccessLevel = 'Read';
+                
+                // Set rowCause to 'manual' for manual sharing.
+                // This line can be omitted as 'manual' is the default value for sharing objects.
+                fdShare.RowCause = 'Manual';
+        		return fdShare;
+                
+    }
+}
